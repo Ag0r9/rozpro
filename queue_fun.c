@@ -13,7 +13,7 @@ struct Queue* createQueue(unsigned capacity)
  
     queue->rear = capacity - 1;
     queue->array = (int*)malloc(
-        queue->capacity * sizeof(int));
+        queue->capacity * sizeof(struct Info));
     return queue;
 }
 
@@ -27,7 +27,7 @@ int isEmpty(struct Queue* queue)
     return (queue->size == 0);
 }
 
-void enqueue(struct Queue* queue, int item)
+void enqueue(struct Queue* queue, struct Info item)
 {
     if (isFull(queue))
         return;
@@ -38,27 +38,39 @@ void enqueue(struct Queue* queue, int item)
     printf("%d enqueued to queue\n", item);
 }
 
-Info dequeue(struct Queue* queue)
+struct Info dequeue(struct Queue* queue)
 {
-    if (isEmpty(queue))
-        return INT_MIN;
-    int item = queue->array[queue->front];
+    if (isEmpty(queue)) {
+        struct Info info;
+        info.id = -1;
+        info.time = -1;
+        return info;
+    }
+    struct Info item = queue->array[queue->front];
     queue->front = (queue->front + 1)
                    % queue->capacity;
     queue->size = queue->size - 1;
     return item;
 }
 
-Info front(struct Queue* queue)
+struct Info front(struct Queue* queue)
 {
-    if (isEmpty(queue))
-        return INT_MIN;
+    if (isEmpty(queue)) {
+        struct Info info;
+        info.id = -1;
+        info.time = -1;
+        return info;
+    }
     return queue->array[queue->front];
 }
 
-Info rear(struct Queue* queue)
+struct Info rear(struct Queue* queue)
 {
-    if (isEmpty(queue))
-        return INT_MIN;
+    if (isEmpty(queue)) {
+        struct Info info;
+        info.id = -1;
+        info.time = -1;
+        return info;
+    }
     return queue->array[queue->rear];
 }

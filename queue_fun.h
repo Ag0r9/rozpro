@@ -2,7 +2,6 @@
 #include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
-// #include "info.h"
 
 struct Info {
     int time;
@@ -11,8 +10,8 @@ struct Info {
 
 
 struct Queue {
-    struct Info front;
-    struct Info rear;
+    int front;
+    int rear;
     int size;
     unsigned capacity;
     struct Info* array;
@@ -22,7 +21,7 @@ struct Queue {
 struct Queue* createQueue(unsigned capacity);
 int isFull(struct Queue* queue);
 int isEmpty(struct Queue* queue);
-void enqueue(struct Queue* queue, int item);
+void enqueue(struct Queue* queue, struct Info item);
 struct Info dequeue(struct Queue* queue);
 struct Info front(struct Queue* queue);
 struct Info rear(struct Queue* queue);
