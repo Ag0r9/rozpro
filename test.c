@@ -1,35 +1,35 @@
 #include <stdio.h>
 #include <stdlib.h>
+
 #include "queue_fun.h"
 
-int main() {
-    struct Info info;
+int main(int argc, char** argv) {
+    struct Info aa;
     struct Queue* queue;
 
-    queue = createQueue(3);
+    queue = createQueue(4);
+    
+    aa.id = 0;
+    aa.time = 1;
+    enqueue(queue, aa);
 
-    int empty = isEmpty(queue);
-    printf("Is empty? - %d\n", empty);
+    aa.id = 1;
+    aa.time = 2;
+    enqueue(queue, aa);
 
-    for (int i = 0; i<3; ++i) {
-        info.id = i;
-        info.time = i;
+    aa.id = 2;
+    aa.time = 999;
+    enqueue(queue, aa);
 
-        enqueue(queue, info);
+    aa.id = 3;
+    aa.time = 13;
+    enqueue(queue, aa);
+
+    sort(queue);
+
+    printf("Koniec\n");
+    for(int i=0; i<4; i++) {
+        aa = dequeue(queue);
+        printf("time %d, id %d\n", aa.time, aa.id);
     }
-
-    empty = isFull(queue);
-    printf("Is full? - %d\n", empty);
-
-    info = front(queue);
-    printf("Front item. Id - %d, time - %d", info.id, info.time);
-
-    info = rear(queue);
-    printf("Rear item. Id - %d, time - %d", info.id, info.time);
-
-    dequeue(queue);
-    info = front(queue);
-    printf("New front item. Id - %d, time - %d", info.id, info.time);
-
-    return 0;
 }

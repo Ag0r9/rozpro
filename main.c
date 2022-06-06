@@ -9,6 +9,10 @@ int size, rank;
 int CLOCK;
 
 int main(int argc, char** argv) {
+    struct Info info;
+    struct Queue* queue;
+    queue = createQueue(3);
+    
     MPI_Status status;
     int buf;
 
@@ -30,12 +34,13 @@ int main(int argc, char** argv) {
         printf("Rank %d out of %d processors, message tag: %d, message source: %d\n", rank, size, status.MPI_TAG, status.MPI_SOURCE);
         switch ( status.MPI_TAG ) {
             case RDY:
-
+                info.id = status.MPI_SOURCE;
+                info.time = buf;
+                enqueue(queue, info);
+                sort(queue);
             break;
         }
     }
     
-
-    // Finalize the MPI environment.
     MPI_Finalize();
 }

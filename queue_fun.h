@@ -25,3 +25,4 @@ void enqueue(struct Queue* queue, struct Info item);
 struct Info dequeue(struct Queue* queue);
 struct Info front(struct Queue* queue);
 struct Info rear(struct Queue* queue);
+void sort(struct Queue* Queue);
