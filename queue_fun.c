@@ -82,7 +82,6 @@ void sort(struct Queue* queue)
     int i=0, j, check;
 	int l = queue->capacity;
 	while(l--) {
-        printf("l: %d\n", l);	
 		if(isEmpty(queue))
 			break;
 		a = dequeue(queue);
