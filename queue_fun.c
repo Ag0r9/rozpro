@@ -69,8 +69,7 @@ struct Info dequeue(struct Queue* queue)
         return info;
     }
     struct Info item = queue->array[queue->front];
-    queue->front = (queue->front + 1)
-                   % queue->capacity;
+    queue->front = (queue->front + 1) % queue->capacity;
     queue->size = queue->size - 1;
     return item;
 }

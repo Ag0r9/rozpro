@@ -21,6 +21,11 @@ int send_msg(int msg, int id_, int type) {
 }
 
 int main(int argc, char** argv) {
+    char tekst[20];
+    char tekst2[1];
+    char b;
+
+
     queue_length = 8;
     hospital = 5;
     second = 3;
@@ -40,7 +45,7 @@ int main(int argc, char** argv) {
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
     CLOCK = 0;
-    STATE = 1;
+    STATE = 1;int aaa;
 
     int hsp_aproved[size];
     int sec_approved[size];
@@ -55,6 +60,8 @@ int main(int argc, char** argv) {
     while (1) {
         switch (STATE) {
             case 1: // Process report willingness to participate in a fight.
+                aaa = isFull(queue);
+                // printf("aaa plz %d\n", aaa);
                 for(int i=0; i<size; ++i) {
                     if (i != rank) {
                         buf = CLOCK;
@@ -63,7 +70,6 @@ int main(int argc, char** argv) {
                         info.id = rank;
                         info.time = CLOCK;
                         enqueue(queue, info);
-                        info2 = front(queue);
                         sort(queue);
                     }
                 }
@@ -72,6 +78,7 @@ int main(int argc, char** argv) {
 
             case 2: // Process is looking for an opponent
                 info = front(queue);
+                // printf("Front: %d, rank: %d\n", info.id, rank);
                 if (info.id == rank) {
                     for(int i=0; i<size; ++i) {
                         if (i != rank) {
@@ -121,12 +128,16 @@ int main(int argc, char** argv) {
                 break;
 
             case 8: // Process is leaving hospital.
+                // printf("Rank: %d, ktora: %d\n", rank, -1);
                 for(int i=0; i<size; ++i) {
                     if (i != rank) {
                         buf = CLOCK;
                         CLOCK = send_msg(buf, i, NOHSP);
                     }
+                    
                 }
+                
+                wait_for_resource = 0;
                 STATE = 1;
 
                 while (!isEmpty(hsp_queue)) {
@@ -143,11 +154,11 @@ int main(int argc, char** argv) {
                 break;
         }
 
-        printf("BeforeRCV: My id %d, my state: %d\n", rank, STATE);
+        // printf("BeforeRCV: My id %d, my state: %d\n", rank, STATE);
         struct Info answer;
         MPI_Recv(&buf, 1, MPI_INT, MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
         CLOCK = MAX(buf, CLOCK)+1;
-        printf("AfterRCV. My id %d, my state: %d, message tag: %d, from who: %d\n", rank, STATE, status.MPI_TAG, status.MPI_SOURCE);
+        // printf("AfterRCV. My id %d, my state: %d, message tag: %d, from who: %d\n", rank, STATE, status.MPI_TAG, status.MPI_SOURCE);
         switch ( status.MPI_TAG ) {
             case RDY:
                 answer.id = status.MPI_SOURCE;
@@ -157,7 +168,16 @@ int main(int argc, char** argv) {
                 break;
 
             case CNF:
+                for (int i=0; i<queue->size; ++i) {
+                    aa = queue->array[i];
+                    printf("my: %d\n", aa.id);
+                    b = aa.id + '0';
+                    strcat(tekst, &b);
+                    strcat(tekst, " ");
+                }
                 answer = dequeue(queue);
+                printf("my rank: %d, moja kolejka: %s\n", rank, tekst);
+                strcpy(tekst, "");
                 break;
 
             case FGT:
@@ -211,7 +231,6 @@ int main(int argc, char** argv) {
 
                 if (is_approved == 1) {
                     --hospital;
-                    wait_for_resource = 0;
                     STATE = 7;
                 }
 
