@@ -1,14 +1,12 @@
 #include <mpi.h>
 #include <stdio.h>
 #include <string.h>
+#include <unistd.h>
 
 #include "main.h"
 #include "queue_fun.h"
 
 #define MAX(a,b) (((a)>(b))?(a):(b))
-
-// MPI RECV TIME TP BUF??
-// KIEDY WYCHODZI Z KOELJKI
 
 int size, rank;
 int CLOCK, STATE;
@@ -28,12 +26,11 @@ int main(int argc, char** argv) {
     second = 3;
 
     struct Info info;
+    struct Info info2;
+    struct Info aa;
     struct Queue* queue;
     struct Queue* hsp_queue;
     struct Queue* sec_queue;
-    queue = createQueue(queue_length);
-    hsp_queue = createQueue(queue_length);
-    sec_queue = createQueue(queue_length);
     
     MPI_Status status;
     int buf;
@@ -47,6 +44,10 @@ int main(int argc, char** argv) {
 
     int hsp_aproved[size];
     int sec_approved[size];
+
+    queue = createQueue(queue_length);
+    hsp_queue = createQueue(queue_length);
+    sec_queue = createQueue(queue_length);
 
     memset(hsp_aproved, 0, sizeof hsp_aproved);
     memset(sec_approved, 0, sizeof sec_approved);
@@ -62,6 +63,7 @@ int main(int argc, char** argv) {
                         info.id = rank;
                         info.time = CLOCK;
                         enqueue(queue, info);
+                        info2 = front(queue);
                         sort(queue);
                     }
                 }
@@ -114,7 +116,7 @@ int main(int argc, char** argv) {
                 break;
 
             case 7: // Process is staying in a hospital.
-                wait(1);
+                // sleep(1);
                 STATE = 8;
                 break;
 
@@ -126,6 +128,12 @@ int main(int argc, char** argv) {
                     }
                 }
                 STATE = 1;
+
+                while (!isEmpty(hsp_queue)) {
+                    info = dequeue(hsp_queue);
+                    buf = CLOCK;
+                    CLOCK = send_msg(buf, info.id, OKHSP);
+                }
                 break;
 
             case 0: // Process is waiting.
@@ -135,10 +143,11 @@ int main(int argc, char** argv) {
                 break;
         }
 
+        printf("BeforeRCV: My id %d, my state: %d\n", rank, STATE);
         struct Info answer;
         MPI_Recv(&buf, 1, MPI_INT, MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
         CLOCK = MAX(buf, CLOCK)+1;
-        printf("Rank %d out of %d processors, message tag: %d, message source: %d\n", rank, size, status.MPI_TAG, status.MPI_SOURCE);
+        printf("AfterRCV. My id %d, my state: %d, message tag: %d, from who: %d\n", rank, STATE, status.MPI_TAG, status.MPI_SOURCE);
         switch ( status.MPI_TAG ) {
             case RDY:
                 answer.id = status.MPI_SOURCE;
@@ -167,7 +176,6 @@ int main(int argc, char** argv) {
                 answer.id = status.MPI_SOURCE;
                 answer.time = buf;
                 
-                // MOZE BYC BLAD
                 if (STATE != 5 && STATE != 6 && STATE != 7 && (STATE != 0 && wait_for_resource != 2)) {
                     CLOCK = send_msg(buf, answer.id, OKHSP);
                 } else if ((STATE == 5 || (STATE == 0 && wait_for_resource == 2)) && answer.time < CLOCK) {
@@ -203,6 +211,7 @@ int main(int argc, char** argv) {
 
                 if (is_approved == 1) {
                     --hospital;
+                    wait_for_resource = 0;
                     STATE = 7;
                 }
 

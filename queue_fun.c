@@ -85,8 +85,10 @@ void sort(struct Queue* queue)
 		if(isEmpty(queue))
 			break;
 		a = dequeue(queue);
-		if(isEmpty(queue))
-			break;
+		if(isEmpty(queue)) {
+            enqueue(queue, a);
+            break;
+        }
 		b = dequeue(queue);
 		j = l-i-1;
 		while(j--) {
