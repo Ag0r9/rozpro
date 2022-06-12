@@ -26,4 +26,6 @@ struct Info dequeue(struct Queue* queue);
 struct Info front(struct Queue* queue);
 struct Info rear(struct Queue* queue);
 void sort(struct Queue* queue);
+struct Info findFellowBehindMe(struct Queue* queue, int id);
+int findPosition(struct Queue* queue, int id);
 struct Info deleteById(struct Queue* queue, int id);

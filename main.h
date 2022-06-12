@@ -17,5 +17,6 @@
 #define HSP 7
 #define OKHSP 8
 #define NOHSP 9
+#define ISHURT 10
 
 

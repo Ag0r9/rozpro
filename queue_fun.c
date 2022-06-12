@@ -117,3 +117,79 @@ void sort(struct Queue* queue)
 		i++;
 	}
 }
+
+struct Info findFellowBehindMe(struct Queue* queue, int id) {
+    struct Info info;
+    struct Info results;
+    results.id = -1;
+    results.time = -1;
+    int is_found = 0;
+    int length = queue->size;
+
+    if (isEmpty(queue))
+        return results;
+
+    for (int i=0; i<length; ++i) {
+        info = dequeue(queue);
+        if (is_found == 1) {
+            results.id = info.id;
+            results.time = info.time;
+            is_found = -1;
+        }
+        
+        if (info.id == id && is_found == 0) {
+            is_found = 1;
+        }
+
+        enqueue(queue, info);
+    }
+    return results;
+}
+
+int findPosition(struct Queue* queue, int id) {
+    struct Info info;
+    struct Info results;
+    int answer = -1;
+    int length = queue->size;
+
+    if (isEmpty(queue))
+        return answer;
+
+    for (int i=0; i<length; ++i) {
+        info = dequeue(queue);
+
+        if (info.id == id && answer == -1)
+            answer = i;
+
+        enqueue(queue, info);
+    }
+    return answer;
+}
+
+struct Info deleteById(struct Queue* queue, int id) {
+    struct Info info;
+    struct Info result;
+
+    int found = 0;
+    
+    result.id = -1;
+    result.time = -1;
+
+    if (isEmpty(queue)) {
+        return result;
+    }
+
+    int size = queue->size;
+    for (int i=0; i<size; ++i) {
+        info = dequeue(queue);
+        if (info.id == id && found == 0) {
+            result.id = info.id;
+            result.time = result.time;
+            found = 1;
+            continue;
+        }
+        enqueue(queue, info);
+    }
+    
+    return result;
+}
