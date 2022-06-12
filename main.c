@@ -21,18 +21,11 @@ int send_msg(int msg, int id_, int type) {
 }
 
 int main(int argc, char** argv) {
-    char tekst[20];
-    char tekst2[1];
-    char b;
-
-
     queue_length = 8;
     hospital = 5;
     second = 3;
 
     struct Info info;
-    struct Info info2;
-    struct Info aa;
     struct Queue* queue;
     struct Queue* hsp_queue;
     struct Queue* sec_queue;
@@ -45,10 +38,11 @@ int main(int argc, char** argv) {
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
     CLOCK = 0;
-    STATE = 1;int aaa;
+    STATE = 1;
 
     int hsp_aproved[size];
     int sec_approved[size];
+    int fight_approved[size];
 
     queue = createQueue(queue_length);
     hsp_queue = createQueue(queue_length);
@@ -56,24 +50,17 @@ int main(int argc, char** argv) {
 
     memset(hsp_aproved, 0, sizeof hsp_aproved);
     memset(sec_approved, 0, sizeof sec_approved);
+    memset(fight_approved, 0, sizeof fight_approved);
 
     while (1) {
         switch (STATE) {
             case 1: // Process report willingness to participate in a fight.
-                aaa = isFull(queue);
-                // printf("aaa plz %d\n", aaa);
                 for(int i=0; i<size; ++i) {
                     if (i != rank) {
                         buf = CLOCK;
                         CLOCK = send_msg(buf, i, RDY);
-                    } else {
-                        info.id = rank;
-                        info.time = CLOCK;
-                        enqueue(queue, info);
-                        sort(queue);
                     }
                 }
-                STATE = 2;
                 break;
 
             case 2: // Process is looking for an opponent
@@ -93,11 +80,20 @@ int main(int argc, char** argv) {
                 break;
 
             case 3: // Process and their opponent are looking for a second.
+                for(int i=0; i<size; ++i) {
+                        if (i != rank) {
+                            buf = CLOCK;
+                            CLOCK = send_msg(buf, i, SEK);
+                        }
+                    }
+                    STATE = 0;
+                    wait_for_resource = 1;
                 break;
 
             case 4: // Process and their opponent get a second.
+                STATE = 5;
                 break;
-
+                
             case 5: // Fight takes place and the second is being terminated.
                 srand(time(0));
                 int result = rand() % 2;
@@ -106,6 +102,22 @@ int main(int argc, char** argv) {
                 } else {
                     STATE = 6;
                 }
+
+                for(int i=0; i<size; ++i) { //Processes are leaving the second.
+                    if (i != rank) {
+                        buf = CLOCK;
+                        CLOCK = send_msg(buf, i, NOSEK);
+                    }
+                }
+                
+                wait_for_resource = 0;
+
+                while (!isEmpty(sec_queue)) {
+                    info = dequeue(sec_queue);
+                    buf = CLOCK;
+                    CLOCK = send_msg(buf, info.id, OKSEK);
+                }
+
                 break;
 
             case 6: // Process which lost is looking for a hospital.
@@ -115,20 +127,18 @@ int main(int argc, char** argv) {
                         CLOCK = send_msg(buf, i, HSP);
                     }
                 }
-                info.id = rank;
-                info.time = CLOCK;
-                enqueue(hsp_queue, info);
                 STATE = 0;
                 wait_for_resource = 2;
                 break;
 
             case 7: // Process is staying in a hospital.
                 // sleep(1);
+                if (rank == 0)
+                    printf("siema\n");
                 STATE = 8;
                 break;
 
             case 8: // Process is leaving hospital.
-                // printf("Rank: %d, ktora: %d\n", rank, -1);
                 for(int i=0; i<size; ++i) {
                     if (i != rank) {
                         buf = CLOCK;
@@ -158,55 +168,125 @@ int main(int argc, char** argv) {
         struct Info answer;
         MPI_Recv(&buf, 1, MPI_INT, MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
         CLOCK = MAX(buf, CLOCK)+1;
+
         // printf("AfterRCV. My id %d, my state: %d, message tag: %d, from who: %d\n", rank, STATE, status.MPI_TAG, status.MPI_SOURCE);
         switch ( status.MPI_TAG ) {
             case RDY:
                 answer.id = status.MPI_SOURCE;
                 answer.time = buf;
-                enqueue(queue, answer);
-                sort(queue);
+
+                if (STATE != 1 && STATE != 2) {
+                    CLOCK = send_msg(buf, answer.id, OK);
+                } else if (STATE == 1 && answer.time < CLOCK) {
+                    CLOCK = send_msg(buf, answer.id, OK);
+                } else if (STATE == 1 && answer.time == CLOCK) {
+                    if (rank < answer.id) {
+                        CLOCK = send_msg(buf, answer.id, OK);
+                    } else {
+                        enqueue(queue, answer);
+                        sort(queue);
+                    }
+                } else if (STATE == 2 || answer.time > CLOCK) {
+                    enqueue(queue, answer);
+                    sort(queue);
+                } else {
+                    enqueue(queue, answer);
+                    sort(queue);
+                }
+                
+                break;
+
+            case OK:
+                answer.id = status.MPI_SOURCE;
+                answer.time = buf;
+                is_approved = 1;
+
+                fight_approved[answer.id] = 1;
+
+                for (int i = 0; i<size; ++i) {
+                    if (i == rank)
+                        continue;
+                    if (fight_approved[i] == 0) {
+                        is_approved = 0;
+                    }
+                }
+
+                if (is_approved == 1) {
+                    STATE = 3;
+                    memset(fight_approved, 0, sizeof fight_approved);;
+                }
                 break;
 
             case CNF:
-                for (int i=0; i<queue->size; ++i) {
-                    aa = queue->array[i];
-                    printf("my: %d\n", aa.id);
-                    b = aa.id + '0';
-                    strcat(tekst, &b);
-                    strcat(tekst, " ");
-                }
                 answer = dequeue(queue);
-                printf("my rank: %d, moja kolejka: %s\n", rank, tekst);
-                strcpy(tekst, "");
                 break;
 
             case FGT:
                 break;
 
             case SEK:
+                answer.id = status.MPI_SOURCE;
+                answer.time = buf;
+                
+                if (STATE != 3 && STATE != 4 && STATE != 5 && (wait_for_resource != 1)) {
+                    CLOCK = send_msg(buf, answer.id, OKSEK);
+                } else if ((STATE == 3 || (STATE == 0 && wait_for_resource == 1)) && answer.time < CLOCK) {
+                    CLOCK = send_msg(buf, answer.id, OKSEK);
+                } else if ((STATE == 3 || (STATE == 0 && wait_for_resource == 1)) && answer.time == CLOCK) {
+                    if (rank < answer.id) {
+                        CLOCK = send_msg(buf, answer.id, OKSEK);
+                    } else {
+                        enqueue(sec_queue, answer);
+                    }
+                } else if (STATE == 4 || STATE == 5 || answer.time > CLOCK) {
+                    enqueue(sec_queue, answer);
+                } else {
+                    enqueue(sec_queue, answer);
+                }
                 break;
 
             case OKSEK:
+                answer.id = status.MPI_SOURCE;
+                answer.time = buf;
+                is_approved = 1;
+
+                sec_approved[answer.id] = 1;
+
+                for (int i = 0; i<size; ++i) {
+                    if (i == rank)
+                        continue;
+                    if (sec_approved[i] == 0) {
+                        is_approved = 0;
+                    }
+                }
+
+                if (is_approved == 1) {
+                    --second;
+                    STATE = 4;
+                    memset(sec_approved, 0, sizeof sec_approved);;
+                }
+
                 break;
 
             case NOSEK:
+                ++second;
                 break;
 
             case HSP:
                 answer.id = status.MPI_SOURCE;
                 answer.time = buf;
                 
-                if (STATE != 5 && STATE != 6 && STATE != 7 && (STATE != 0 && wait_for_resource != 2)) {
+                if (STATE != 6 && STATE != 7 && STATE != 8 && (wait_for_resource != 2)) {
                     CLOCK = send_msg(buf, answer.id, OKHSP);
-                } else if ((STATE == 5 || (STATE == 0 && wait_for_resource == 2)) && answer.time < CLOCK) {
+                } else if ((STATE == 6 || (STATE == 0 && wait_for_resource == 2)) && answer.time < CLOCK) {
                     CLOCK = send_msg(buf, answer.id, OKHSP);
-                } else if ((STATE == 5 || (STATE == 0 && wait_for_resource == 2))&& answer.time == CLOCK) {
+                } else if ((STATE == 6 || (STATE == 0 && wait_for_resource == 2)) && answer.time == CLOCK) {
                     if (rank < answer.id) {
                         CLOCK = send_msg(buf, answer.id, OKHSP);
                     } else {
                         enqueue(hsp_queue, answer);
                     }
-                } else if (STATE == 6 || STATE == 7 || answer.time > CLOCK) {
+                } else if (STATE == 7 || STATE == 8 || answer.time > CLOCK) {
                     enqueue(hsp_queue, answer);
                 } else {
                     enqueue(hsp_queue, answer);
@@ -232,6 +312,7 @@ int main(int argc, char** argv) {
                 if (is_approved == 1) {
                     --hospital;
                     STATE = 7;
+                    memset(hsp_aproved, 0, sizeof hsp_aproved);;
                 }
 
                 break;

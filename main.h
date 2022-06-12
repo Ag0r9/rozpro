@@ -8,12 +8,14 @@
 #include <pthread.h>
 
 #define RDY 0
-#define CNF 1
-#define FGT 2
-#define SEK 3
-#define OKSEK 4
-#define NOSEK 5
-#define HSP 6
-#define OKHSP 7
-#define NOHSP 8
+#define OK 1
+#define CNF 2
+#define FGT 3
+#define SEK 4
+#define OKSEK 5
+#define NOSEK 6
+#define HSP 7
+#define OKHSP 8
+#define NOHSP 9
+
 
