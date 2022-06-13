@@ -1,7 +1,8 @@
 #include "zmienne.h"
 
 void deleteById(std::vector<Info>* q, int idx) {
-    (*q).erase((*q).begin()+idx);
+    int place = findPosition(q, idx);
+    (*q).erase((*q).begin()+place);
 }
 
 bool sortByTime(Info i1, Info i2) {

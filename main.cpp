@@ -1,26 +1,31 @@
 #include "main.h"
 
+#define ANSI_COLOR_RED     "\x1b[31m"
+#define ANSI_COLOR_GREEN   "\x1b[32m"
+#define ANSI_COLOR_YELLOW  "\x1b[33m"
+#define ANSI_COLOR_BLUE    "\x1b[34m"
+#define ANSI_COLOR_MAGENTA "\x1b[35m"
+#define ANSI_COLOR_CYAN    "\x1b[36m"
+#define ANSI_COLOR_RESET   "\x1b[0m"
+
 std::mutex stateMutex;
 std::condition_variable canGoFurther;
 
 int size, rank;
 int CLOCK, STATE;
-int hospital, second;
+int hospital, process;
 int wait_for_resource = 0; // 0 - nothing, 1 = second, 2 - hospital
 int is_approved, coded_msg;
-int position = -1;
-int opponent = -1;
 bool isActive = true;
 
 std::vector<Info> queue;
 std::vector<Info> hsp_queue;
-std::vector<Info> sec_queue;
 
 int main(int argc, char** argv) {
     Info info;
 
-    hospital = 5;
-    second = 3;
+    hospital = 4;
+    process = 3;
 
     MPI_Status status;
     int buf;
@@ -32,26 +37,21 @@ int main(int argc, char** argv) {
     CLOCK = 0;
     STATE = 1;
 
-    int hsp_aproved[size];
-    int sec_approved[size];
-    int fight_approved[size];
-
     std::thread recvThread(receiverThread);
 
     while (isActive) {
         switch (STATE) {
             case 1: // Process report willingness to participate in a fight.
                 {
-                info.id = rank;
-                info.time = CLOCK;
-                queue.push_back(info);
-                sort(queue.begin(), queue.end(), sortByTime);
+                printf("Time %d, Rank %d, szukam przeciwnika\n", CLOCK, rank);
                 for(int i=0; i<size; ++i) {
                     if (i != rank) {
                         buf = CLOCK;
                         CLOCK = send_msg(buf, i, READY);
                     }
                 }
+                STATE = 0;
+                wait_for_resource = 1;
                 }
                 break;
 
@@ -77,6 +77,7 @@ int main(int argc, char** argv) {
 
             case 3: // Process and their opponent are looking for a second.
                 {
+                // printf("Time %d, Rank %d, szukam sekundanta\n", CLOCK, rank);
                 for(int i=0; i<size; ++i) {
                         if (i != rank) {
                             buf = CLOCK;
@@ -89,52 +90,27 @@ int main(int argc, char** argv) {
                 break;
 
             case 4: // Process and their opponent get a second.
+                // printf("Time %d, Rank %d, mam sekundanta\n", CLOCK, rank);
                 STATE = 5;
                 break;
                 
             case 5: // Fight takes place and the second is being terminated.
                 {
-                srand(time(NULL));
-                int result = rand() % 2;
-                if (result == 0) {
-                    STATE = 1;
-                    CLOCK++;
-                    buf = encode(2, CLOCK);
-                    MPI_Send(&buf, 1, MPI_INT, opponent, ISHURT, MPI_COMM_WORLD);
-                } else {
-                    STATE = 6;
-                    CLOCK++;
-                    buf = encode(1, CLOCK);
-                    MPI_Send(&buf, 1, MPI_INT, opponent, ISHURT, MPI_COMM_WORLD);
-                }
-
-                for(int i=0; i<size; ++i) { //Processes are leaving the second.
-                    if (i != rank) {
-                        buf = CLOCK;
-                        CLOCK = send_msg(buf, i, NOSECOND);
-                    }
-                }
-                
                 wait_for_resource = 0;
+                STATE = 6;
 
-                while (sec_queue.size() > 0) {
-                    sec_queue.erase(sec_queue.begin());
-                    buf = CLOCK;
-                    CLOCK = send_msg(buf, info.id, OKSECOND);
-                }
-
-                for (int i=0; i<queue.size(); i++) {
+                while (queue.size() > 0) {
+                    info = queue.front();
+                    queue.erase(queue.begin());
                     buf = CLOCK;
                     CLOCK = send_msg(buf, info.id, OK);
                 }
-
-                // forget opponent
-                opponent = -1;
                 }
                 break;
 
             case 6: // Process which lost is looking for a hospital.
                 {
+                printf("Time %d, Rank %d, szukam szpitala\n", CLOCK, rank);
                 for(int i=0; i<size; ++i) {
                     if (i != rank) {
                         buf = CLOCK;
@@ -147,28 +123,24 @@ int main(int argc, char** argv) {
                 break;
 
             case 7: // Process is staying in a hospital.
+                printf("Time %d, Rank %d, leczę się\n", CLOCK, rank);
                 sleep(rand()%10+1);
                 STATE = 8;
                 break;
 
             case 8: // Process is leaving hospital.
-                {
-                for(int i=0; i<size; ++i) {
-                    if (i != rank) {
-                        buf = CLOCK;
-                        CLOCK = send_msg(buf, i, NOHOSPITAL);
-                    }
-                }
+                printf("Time %d, Rank %d, zwalniam szpital\n", CLOCK, rank);
                 
                 wait_for_resource = 0;
                 STATE = 1;
 
                 while (hsp_queue.size() > 0) {
+                    info = hsp_queue.front();
                     hsp_queue.erase(hsp_queue.begin());
                     buf = CLOCK;
                     CLOCK = send_msg(buf, info.id, OKHOSPITAL);
                 }
-                }
+
                 break;
 
             case 0: // Process is waiting.
@@ -177,7 +149,6 @@ int main(int argc, char** argv) {
             default:
                 break;
         }
-    
     }
     
     MPI_Finalize();

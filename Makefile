@@ -5,12 +5,12 @@ FLAGS=-DDEBUG -g
 all: main
 
 main: $(SOURCES) $(HEADERS)
-	mpiCC $(SOURCES) $(FLAGS) -o main
+	mpiCC $(SOURCES) $(FLAGS) -o pojedynek
 
 clear: clean
 
 clean:
-	rm main a.out
+	rm pojedynek a.out main
 
 run: main
-	mpirun -oversubscribe -np 8 ./main
+	mpirun -oversubscribe -np 8 ./pojedynek

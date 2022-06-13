@@ -18,11 +18,8 @@ extern int size;
 extern int rank;
 
 extern int hospital;
-extern int second;
+extern int process;
 extern int wait_for_resource;
-
-extern int position;
-extern int opponent;
 
 typedef struct {
     int id;
