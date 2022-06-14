@@ -46,24 +46,28 @@ void receiverThread() {
             //     break;
 
             case HOSPITAL:
+                printf("prosi o hospital %d\n", status.MPI_SOURCE);
                 answer.id = status.MPI_SOURCE;
                 answer.time = buf;
                 
-                if (STATE != 6 && STATE!=7 && STATE!=8 && (wait_for_resource != 1)) {
+                if (STATE!=7 && STATE!=8) {
                     ++CLOCK;
+                    printf("GICIOR\n");
                     send_msg(CLOCK, answer.id, OKHOSPITAL);
-                } else if ((STATE == 6 || (wait_for_resource == 1)) && answer.time < LAST_REQ) {
+                } else if ((STATE == 6 || (wait_for_resource == 2)) && answer.time < LAST_REQ) {
                     ++CLOCK;
+                    printf("GICIOR\n");
                     send_msg(CLOCK, answer.id, OKHOSPITAL);
-                } else if ((STATE == 6 || (wait_for_resource == 1)) && answer.time == LAST_REQ) {
+                } else if ((STATE == 6 || (wait_for_resource == 2)) && answer.time == LAST_REQ) {
                     if (rank < answer.id) {
                         ++CLOCK;
                         send_msg(CLOCK, answer.id, OKHOSPITAL);
                     } else {
-                        hsp_queue.push_back(answer);
+                        hsp_queue.push_back(Info {answer.id, answer.time} );
                     }
                 } else {
-                    hsp_queue.push_back(answer);
+                    printf("NIEGICIOR\n");
+                    hsp_queue.push_back(Info {answer.id, answer.time});
                 }
 
                 stateMutex.unlock();
@@ -77,6 +81,8 @@ void receiverThread() {
                 if (hospital_approved >= size - hospital) {
                     hospital_approved = 0;
                     STATE = 7;
+                    stateMutex.unlock();
+                    canGoFurther.notify_all();
                 }
                 stateMutex.unlock();
                 break;

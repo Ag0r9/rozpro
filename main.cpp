@@ -15,6 +15,8 @@ std::vector<Info> hsp_queue;
 int main(int argc, char** argv) {
     Info info;
 
+    srandom(time(NULL)+getpid()+rank);
+
     hospital = atoi(argv[1]);
     process = atoi(argv[2]);
 
@@ -33,44 +35,15 @@ int main(int argc, char** argv) {
     while (isActive) {
         
         stateMutex.lock();
-        switch (STATE) {
-            case 1: // Process report willingness to participate in a fight.
-                printf("Time %d, Rank %d, walcze z przeciwnikiem\n", CLOCK, rank);
-                STATE = 6;
-                sleep(rand()%5+1);
-                // sleep(rand()%10+1);
-                // LAST_REQ = CLOCK + 1;
-                // wait_for_resource = 1;
-                // STATE = 0;
-                // for(int i=0; i<size; ++i) {
-                //     if (i != rank) {
-                //         CLOCK++;
-                //         send_msg(CLOCK, i, READY);
-                //     }
-                // }
-                // printf("Time %d, Rank %d, still szukam przeciwnika\n", CLOCK, rank);
-                stateMutex.unlock();
-                break;
-                
-            // case 5: // Fight takes place and the second is being terminated.
-            //     // printf("Time %d, Rank %d, walcze z przeciwnikiem\n", CLOCK, rank);
 
-            //     // while (queue.size() > 0) {
-            //     //     printf("jestem\n");
-            //     //     info = queue.front();
-            //     //     queue.erase(queue.begin());
-            //     //     CLOCK++;
-            //     //     send_msg(CLOCK, info.id, OK);
-            //     // }
+        printf("Time %d, Rank %d, walcze z przeciwnikiem\n", CLOCK, rank);
+                int t =rand()%5+1; 
+                printf("przez %d\n", t);
+                sleep(t);
+               
+                //STATE = 6;
 
-            //     // wait_for_resource = 0;
-            //     // STATE = 1;
-            //     // stateMutex.unlock();
-            //     // printf("Time %d, Rank %d, zwalniam przeciwnika\n", CLOCK, rank);
-
-            //     break;
-
-            case 6: // Process which lost is looking for a hospital.
+            // case 6: // Process which lost is looking for a hospital.
                 printf("Time %d, Rank %d, ubiegam się o szpital\n", CLOCK, rank);
                 LAST_REQ = CLOCK + 1;
                 wait_for_resource = 2;
@@ -83,16 +56,19 @@ int main(int argc, char** argv) {
                     }
                 }
                 stateMutex.unlock();
-                break;
+                // break;
 
-            case 7: // Process is staying in a hospital.
+                std::unique_lock<std::mutex> lk(stateMutex);
+                canGoFurther.wait(lk);
+
+            // case 7: // Process is staying in a hospital.
                 printf("Time %d, Rank %d, leczę się\n", CLOCK, rank);
                 sleep(rand()%10+1);
                 STATE = 8;
                 stateMutex.unlock();
-                break;
+                // break;
 
-            case 8: // Process is leaving hospital.
+            // case 8: // Process is leaving hospital.
                 printf("Time %d, Rank %d, zwalniam szpital\n", CLOCK, rank);
                 
                 while (hsp_queue.size() > 0) {
@@ -106,16 +82,16 @@ int main(int argc, char** argv) {
                 STATE = 1;
                 stateMutex.unlock();
 
-                break;
+                // break;
 
-            case 0: // Process is waiting.
+            // case 0: // Process is waiting.
                 stateMutex.unlock();
-                break;
+                // break;
 
-            default:
+            // default:
                 stateMutex.unlock();
-                break;
-        }
+                // break;
+        // }
     }
     
     MPI_Finalize();
