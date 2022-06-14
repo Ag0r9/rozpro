@@ -49,13 +49,13 @@ void receiverThread() {
                 answer.id = status.MPI_SOURCE;
                 answer.time = buf;
                 
-                if (STATE != 6 && (wait_for_resource != 1)) {
+                if (STATE != 6 && STATE!=7 && STATE!=8 && (wait_for_resource != 1)) {
                     ++CLOCK;
                     send_msg(CLOCK, answer.id, OKHOSPITAL);
-                } else if ((STATE == 6 || (wait_for_resource == 1)) && answer.time < CLOCK) {
+                } else if ((STATE == 6 || (wait_for_resource == 1)) && answer.time < LAST_REQ) {
                     ++CLOCK;
                     send_msg(CLOCK, answer.id, OKHOSPITAL);
-                } else if ((STATE == 6 || (wait_for_resource == 1)) && answer.time == CLOCK) {
+                } else if ((STATE == 6 || (wait_for_resource == 1)) && answer.time == LAST_REQ) {
                     if (rank < answer.id) {
                         ++CLOCK;
                         send_msg(CLOCK, answer.id, OKHOSPITAL);
