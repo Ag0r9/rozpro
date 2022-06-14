@@ -64,10 +64,13 @@ int main(int argc, char** argv) {
         canGoFurther.wait(lk);
 
         printf(ANSI_COLOR_RED "Time %d, Rank %d, leczę się\n", CLOCK, rank);
-        stateMutex.lock();
+        // stateMutex.lock();
         STATE = 8;
-        stateMutex.unlock();
+        // stateMutex.unlock();
+        // printf("AAA %d\n", rank);
         sleep(rand()%10+1);
+
+        // printf("BBB %d\n", rank);
 
         printf(ANSI_COLOR_GREEN "Time %d, Rank %d, zwalniam szpital\n", CLOCK, rank);
                 

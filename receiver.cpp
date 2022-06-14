@@ -20,9 +20,11 @@ void receiverThread() {
                 answer.time = buf;
                 
                 if (STATE!= 7 && STATE!=8) {
+                    // printf("GIT\n");
                     ++CLOCK;
                     send_msg(CLOCK, answer.id, OKHOSPITAL);
                 } else if (wait_for_resource == 2 && answer.time < LAST_REQ) {
+                    // printf("GIT\n");
                     ++CLOCK;
                     send_msg(CLOCK, answer.id, OKHOSPITAL);
                 } else if (wait_for_resource == 2 && answer.time == LAST_REQ) {
@@ -33,6 +35,7 @@ void receiverThread() {
                         hsp_queue.push_back(Info {answer.id, answer.time});
                     }
                 } else {
+                    // printf("NIE\n");
                     hsp_queue.push_back(Info {answer.id, answer.time});
                 }
 
