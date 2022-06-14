@@ -37,7 +37,7 @@ int main(int argc, char** argv) {
             case 1: // Process report willingness to participate in a fight.
                 printf("Time %d, Rank %d, walcze z przeciwnikiem\n", CLOCK, rank);
                 STATE = 6;
-                sleep(rand()%10+1);
+                sleep(rand()%5+1);
                 // sleep(rand()%10+1);
                 // LAST_REQ = CLOCK + 1;
                 // wait_for_resource = 1;
@@ -75,6 +75,7 @@ int main(int argc, char** argv) {
                 LAST_REQ = CLOCK + 1;
                 wait_for_resource = 2;
                 STATE = 0;
+
                 for(int i=0; i<size; ++i) {
                     if (i != rank) {
                         CLOCK++;
@@ -94,14 +95,15 @@ int main(int argc, char** argv) {
             case 8: // Process is leaving hospital.
                 printf("Time %d, Rank %d, zwalniam szpital\n", CLOCK, rank);
                 
-                wait_for_resource = 0;
-                STATE = 1;
                 while (hsp_queue.size() > 0) {
                     info = hsp_queue.front();
                     hsp_queue.erase(hsp_queue.begin());
                     CLOCK++;
                     send_msg(CLOCK, info.id, OKHOSPITAL);
                 }
+
+                wait_for_resource = 0;
+                STATE = 1;
                 stateMutex.unlock();
 
                 break;

@@ -40,8 +40,8 @@ void send_msg(int msg, int id_, int type);
 // Info decode(int code);
 // void deleteById(std::vector<Info>* q, int idx);
 
-#define READY 0
-#define OK 1
+// #define READY 0
+// #define OK 1
 // #define CONFIRM 2
 // #define FIGHT 3
 // #define SECOND 4
