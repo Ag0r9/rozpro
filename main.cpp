@@ -1,24 +1,28 @@
 #include "main.h"
 
+#define ANSI_COLOR_RED     "\x1b[31m"
+#define ANSI_COLOR_GREEN   "\x1b[32m"
+#define ANSI_COLOR_YELLOW  "\x1b[33m"
+#define ANSI_COLOR_BLUE    "\x1b[34m"
+#define ANSI_COLOR_RESET   "\x1b[0m"
+
 std::mutex stateMutex;
 std::condition_variable canGoFurther;
 
 int size, rank;
 int CLOCK, LAST_REQ, STATE;
-int hospital, process;
-int wait_for_resource = 0; // 0 - nothing, 1 - opponent, 2 - hospital
+int hospital;
+int wait_for_resource; // 0 - nothing, 2 - hospital
 bool isActive = true;
 
-std::vector<Info> queue;
 std::vector<Info> hsp_queue;
 
 int main(int argc, char** argv) {
     Info info;
 
-    srandom(time(NULL)+getpid()+rank);
+    srandom(time(NULL) + getpid() + rank);
 
     hospital = atoi(argv[1]);
-    process = atoi(argv[2]);
 
     MPI_Status status;
 
@@ -28,70 +32,51 @@ int main(int argc, char** argv) {
 
     CLOCK = 0;
     LAST_REQ = 0;
-    STATE = 1;
 
     std::thread recvThread(receiverThread);
 
     while (isActive) {
-        
+        printf(ANSI_COLOR_BLUE "Time %d, Rank %d, walcze z przeciwnikiem ", CLOCK, rank);
         stateMutex.lock();
+        wait_for_resource = 0;
+        STATE = 1;
+        stateMutex.unlock();
+        int fight_time = rand()%5+1; 
+        printf("przez %d\n", fight_time);
+        sleep(fight_time);
 
-        printf("Time %d, Rank %d, walcze z przeciwnikiem\n", CLOCK, rank);
-                int t =rand()%5+1; 
-                printf("przez %d\n", t);
-                sleep(t);
-               
-                //STATE = 6;
 
-            // case 6: // Process which lost is looking for a hospital.
-                printf("Time %d, Rank %d, ubiegam się o szpital\n", CLOCK, rank);
-                LAST_REQ = CLOCK + 1;
-                wait_for_resource = 2;
-                STATE = 0;
+        printf(ANSI_COLOR_YELLOW  "Time %d, Rank %d, ubiegam się o szpital\n", CLOCK, rank);
+        stateMutex.lock();
+        LAST_REQ = CLOCK + 1;
+        wait_for_resource = 2;
+        STATE = 0;
 
-                for(int i=0; i<size; ++i) {
-                    if (i != rank) {
-                        CLOCK++;
-                        send_msg(CLOCK, i, HOSPITAL);
-                    }
-                }
-                stateMutex.unlock();
-                // break;
+        for(int i=0; i<size; ++i) {
+            if (i != rank) {
+                CLOCK++;
+                send_msg(CLOCK, i, HOSPITAL);
+            }
+        }
+        stateMutex.unlock();
 
-                std::unique_lock<std::mutex> lk(stateMutex);
-                canGoFurther.wait(lk);
+        std::unique_lock<std::mutex> lk(stateMutex);
+        canGoFurther.wait(lk);
 
-            // case 7: // Process is staying in a hospital.
-                printf("Time %d, Rank %d, leczę się\n", CLOCK, rank);
-                sleep(rand()%10+1);
-                STATE = 8;
-                stateMutex.unlock();
-                // break;
+        printf(ANSI_COLOR_RED "Time %d, Rank %d, leczę się\n", CLOCK, rank);
+        stateMutex.lock();
+        STATE = 8;
+        stateMutex.unlock();
+        sleep(rand()%10+1);
 
-            // case 8: // Process is leaving hospital.
-                printf("Time %d, Rank %d, zwalniam szpital\n", CLOCK, rank);
+        printf(ANSI_COLOR_GREEN "Time %d, Rank %d, zwalniam szpital\n", CLOCK, rank);
                 
-                while (hsp_queue.size() > 0) {
-                    info = hsp_queue.front();
-                    hsp_queue.erase(hsp_queue.begin());
-                    CLOCK++;
-                    send_msg(CLOCK, info.id, OKHOSPITAL);
-                }
-
-                wait_for_resource = 0;
-                STATE = 1;
-                stateMutex.unlock();
-
-                // break;
-
-            // case 0: // Process is waiting.
-                stateMutex.unlock();
-                // break;
-
-            // default:
-                stateMutex.unlock();
-                // break;
-        // }
+        while (hsp_queue.size() > 0) {
+            info = hsp_queue.front();
+            hsp_queue.erase(hsp_queue.begin());
+            CLOCK++;
+            send_msg(CLOCK, info.id, OKHOSPITAL);
+        }
     }
     
     MPI_Finalize();
