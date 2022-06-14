@@ -4,7 +4,7 @@ void receiverThread() {
     MPI_Status status;
     int buf;
 
-    Info answer, info;
+    Info answer;
     int fight_approved = 0;
     int hospital_approved = 0;
 
@@ -12,180 +12,96 @@ void receiverThread() {
         MPI_Recv(&buf, 1, MPI_INT, MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
         stateMutex.lock();
         CLOCK = MAX(buf, CLOCK)+1;
-        stateMutex.unlock();
 
         switch ( status.MPI_TAG ) {
             case READY:
                 answer.id = status.MPI_SOURCE;
                 answer.time = buf;
 
-                buf = CLOCK;
-
-                if (STATE != 1 && (STATE != 0 && wait_for_resource != 1)) {
-                    CLOCK = send_msg(buf, answer.id, OK);
-                } else if ((STATE == 1 || (STATE == 0 && wait_for_resource == 1)) && answer.time < CLOCK) {
-                    CLOCK = send_msg(buf, answer.id, OK);
-                } else if ((STATE == 1 || (STATE == 1 && wait_for_resource == 1)) && answer.time == CLOCK) {
-                    if (rank < answer.id) {
-                        CLOCK = send_msg(buf, answer.id, OK);
-                    } else {
-                        queue.push_back(answer);
-                    }
-                } else {
+                if (STATE == 5 || (wait_for_resource == 1 && answer.time > LAST_REQ)) {
                     queue.push_back(answer);
-                }
-
+                    printf("Time: %d, Ja %d dodaje do kolejki %d; moj time: %d, jego time %d\n", CLOCK, rank, answer.id, LAST_REQ, answer.time);
+                } else if ((wait_for_resource == 0) || (wait_for_resource == 1 && answer.time <= LAST_REQ)) {
+                    printf("Time: %d, Ja %d wysyłam OK do %d\n", CLOCK, rank, answer.id);
+                    CLOCK++;
+                    send_msg(CLOCK, answer.id, OK);
+                } 
+                stateMutex.unlock();
                 break;
 
             case OK:
-                answer.id = status.MPI_SOURCE;
-                answer.time = buf;
-
                 fight_approved++;
 
-                if (fight_approved == size - 1) {
+                printf("Rank %d, appri: %d, size: %d, proc %d\n", rank, fight_approved, size, process);
+
+                if (fight_approved >= size - process) {
                     fight_approved = 0;
                     STATE = 5;
                 }
+                stateMutex.unlock();
 
-                break;
-
-            // case CONFIRM:
-            //     {
-            //     // id == my id => dodoarkowo zapewniam sekundata + lososwanie wyniku
-            //     // id == my id zapisac przeciwnika
-            //     //kazdy usuwa
-
-            //     answer.id = status.MPI_SOURCE;
-            //     answer.time = buf;
-
-            //     deleteById(&queue, answer.id);
-            //     answer = decode(answer.time);
-            //     deleteById(&queue, answer.id);
-
-            //     if (answer.id == rank) {
-            //         opponent = answer.id;
-            //         STATE = 3;
-            //     }
-
-            //     }
-            //     break;
-
-            // case FIGHT:
-            //     answer.id = status.MPI_SOURCE;
-            //     answer.time = buf;
-
-            //     for (int i=0; i<size; ++i) {
-            //         if (i != rank) {
-            //             answer.time++;
-            //             buf = encode(answer.id, answer.time);
-            //             MPI_Send(&buf, 1, MPI_INT, i, CONFIRM, MPI_COMM_WORLD);
-            //         } else {
-            //             //usunac siebie i przeciwnika
-            //             //go state 0
-            //             deleteById(&queue, rank);
-            //             deleteById(&queue, answer.id);
-            //             STATE = 0;
-            //             position = -1;
-            //         }
-            //     }
-
-            //     break;
-
-            // case ISHURT:
-            //     //1 to wygral i stan 1
-            //     // 2 to przegral i stan 6
-            //     answer.id = status.MPI_SOURCE;
-            //     answer.time = buf;
-
-            //     answer = decode(buf);
-            //     if (answer.id == 1) {
-            //         STATE = 1;
-            //     } else {
-            //         STATE = 6;
-            //     }
-            //     break;
-
-            // case SECOND:
-            //     answer.id = status.MPI_SOURCE;
-            //     answer.time = buf;
-                
-            //     if (STATE != 3 && STATE != 4 && STATE != 5 && (wait_for_resource != 1)) {
-            //         CLOCK = send_msg(buf, answer.id, OKSECOND);
-            //     } else if ((STATE == 3 || (STATE == 0 && wait_for_resource == 1)) && answer.time < CLOCK) {
-            //         CLOCK = send_msg(buf, answer.id, OKSECOND);
-            //     } else if ((STATE == 3 || (STATE == 0 && wait_for_resource == 1)) && answer.time == CLOCK) {
-            //         if (rank < answer.id) {
-            //             CLOCK = send_msg(buf, answer.id, OKSECOND);
-            //         } else {
-            //             sec_queue.push_back(answer);
-            //         }
-            //     } else if (STATE == 4 || STATE == 5 || answer.time > CLOCK) {
-            //         sec_queue.push_back(answer);
-            //     } else {
-            //         sec_queue.push_back(answer);
-            //     }
-            //     break;
-
-            // case OKSECOND:
-            //     // answer.id = status.MPI_SOURCE;
-            //     // answer.time = buf;
-
-            //     // second_approved++;
-
-            //     // if (second_approved == size - 1) {
-            //     //     --second;
-            //     //     second_approved = 0;
-            //     //     STATE = 4;
-            //     // }
-
-            //     break;
-
-            // case NOSECOND:
-                // ++second;
                 break;
 
             case HOSPITAL:
-                answer.id = status.MPI_SOURCE;
-                answer.time = buf;
-
-                buf = CLOCK;
+            //     answer.id = status.MPI_SOURCE;
+            //     answer.time = buf;
                 
-                if (STATE != 6 && STATE != 7 && STATE != 8 && (wait_for_resource != 2)) {
-                    CLOCK = send_msg(buf, answer.id, OKHOSPITAL);
-                } else if ((STATE == 6 || (STATE == 0 && wait_for_resource == 2)) && answer.time < CLOCK) {
-                    CLOCK = send_msg(buf, answer.id, OKHOSPITAL);
-                } else if ((STATE == 6 || (STATE == 0 && wait_for_resource == 2)) && answer.time == CLOCK) {
-                    if (rank < answer.id) {
-                        CLOCK = send_msg(buf, answer.id, OKHOSPITAL);
-                    } else {
-                        hsp_queue.push_back(answer);
-                    }
-                } else if (STATE == 7 || STATE == 8 || answer.time > CLOCK) {
-                    hsp_queue.push_back(answer);
-                } else {
-                    hsp_queue.push_back(answer);
-                }
-
+            //     if (STATE != 6 && STATE != 7 && STATE != 8 && (wait_for_resource != 2)) {
+            //         CLOCK++;
+            //         send_msg(CLOCK, answer.id, OKHOSPITAL);
+            //     } else if ((STATE == 6 || (STATE == 0 && wait_for_resource == 2)) && answer.time < CLOCK) {
+            //         CLOCK++;
+            //         send_msg(CLOCK, answer.id, OKHOSPITAL);
+            //     } else if ((STATE == 6 || (STATE == 0 && wait_for_resource == 2)) && answer.time == CLOCK) {
+            //         if (rank < answer.id) {
+            //             CLOCK++;
+            //             send_msg(CLOCK, answer.id, OKHOSPITAL);
+            //         } else {
+            //             hsp_queue.push_back(answer);
+            //         }
+            //     } else if (STATE == 7 || STATE == 8 || answer.time > CLOCK) {
+            //         hsp_queue.push_back(answer);
+            //     } else {
+            //         hsp_queue.push_back(answer);
+            //     }
+                stateMutex.unlock();
                 break;
 
             case OKHOSPITAL:
-                hospital_approved++;
+                // hospital_approved++;
 
-                if (hospital_approved >= size - hospital) {
-                    hospital_approved = 0;
-                    STATE = 7;
-                }
-
+                // if (hospital_approved >= size - hospital) {
+                //     hospital_approved = 0;
+                //     STATE = 7;
+                // }
+                stateMutex.unlock();
                 break;
+                
 
-            case NOHOSPITAL:
-                // printf("rank: %d, NOHOSPITAL %d\n", rank, hospital);
-                break;
 
             default:
+                stateMutex.unlock();
                 break;
         }
 
     }
 }
+
+// answer.id = status.MPI_SOURCE;
+//                 answer.time = buf;
+
+//                 printf("moje id: %d, id nadawcy: %d, jego czas %d\n", rank, answer.id, answer.time);
+//                 if (STATE == 5 || (STATE ==1 && wait_for_resource != 1)) {
+//                     CLOCK = send_msg(buf, answer.id, OK);
+//                 } else if ((STATE == 1 || STATE == 5 || (wait_for_resource == 1)) && answer.time < LAST_REQ) {
+//                     CLOCK = send_msg(buf, answer.id, OK);
+//                 } else if ((STATE == 1 || STATE == 5 || (wait_for_resource == 1)) && answer.time == LAST_REQ) {
+//                     if (rank < answer.id) {
+//                         CLOCK = send_msg(buf, answer.id, OK);
+//                     } else {
+//                         queue.push_back(answer);
+//                     }
+//                 } else {
+//                     queue.push_back(answer);
+//                 }
+//                 stateMutex.unlock();

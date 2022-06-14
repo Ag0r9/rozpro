@@ -13,4 +13,4 @@ clean:
 	rm pojedynek a.out main
 
 run: main
-	mpirun -oversubscribe -np 8 ./pojedynek
+	mpirun -oversubscribe -np 8 ./pojedynek 4

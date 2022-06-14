@@ -1,21 +1,12 @@
 #include "main.h"
 
-#define ANSI_COLOR_RED     "\x1b[31m"
-#define ANSI_COLOR_GREEN   "\x1b[32m"
-#define ANSI_COLOR_YELLOW  "\x1b[33m"
-#define ANSI_COLOR_BLUE    "\x1b[34m"
-#define ANSI_COLOR_MAGENTA "\x1b[35m"
-#define ANSI_COLOR_CYAN    "\x1b[36m"
-#define ANSI_COLOR_RESET   "\x1b[0m"
-
 std::mutex stateMutex;
 std::condition_variable canGoFurther;
 
 int size, rank;
-int CLOCK, STATE;
+int CLOCK, LAST_REQ, STATE;
 int hospital, process;
 int wait_for_resource = 0; // 0 - nothing, 1 = second, 2 - hospital
-int is_approved, coded_msg;
 bool isActive = true;
 
 std::vector<Info> queue;
@@ -24,8 +15,8 @@ std::vector<Info> hsp_queue;
 int main(int argc, char** argv) {
     Info info;
 
-    hospital = 4;
-    process = 3;
+    hospital = atoi(argv[1]);
+    process = atoi(argv[2]);
 
     MPI_Status status;
     int buf;
@@ -35,118 +26,94 @@ int main(int argc, char** argv) {
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
     CLOCK = 0;
+    LAST_REQ = 0;
     STATE = 1;
 
     std::thread recvThread(receiverThread);
 
     while (isActive) {
+        
+        stateMutex.lock();
         switch (STATE) {
             case 1: // Process report willingness to participate in a fight.
                 {
                 printf("Time %d, Rank %d, szukam przeciwnika\n", CLOCK, rank);
+                LAST_REQ = CLOCK + 1;
+                wait_for_resource = 1;
+                STATE = 0;
                 for(int i=0; i<size; ++i) {
                     if (i != rank) {
-                        buf = CLOCK;
-                        CLOCK = send_msg(buf, i, READY);
+                        CLOCK++;
+                        send_msg(CLOCK, i, READY);
                     }
                 }
-                STATE = 0;
-                wait_for_resource = 1;
+                printf("Time %d, Rank %d, still szukam przeciwnika\n", CLOCK, rank);
                 }
-                break;
-
-            case 2: // Process is looking for an opponent
-                {
-                position = findPosition(&queue, rank);
-
-                if (position == -1 || position % 2 == 1)
-                    break;
-                
-                if (position % 2 == 0) {
-                    info = queue.at(position+1);
-                    if (info.id == -1)
-                        break;
-                    buf = CLOCK;
-                    CLOCK = send_msg(buf, info.id, FIGHT);
-                    STATE = 0;
-                    position = -1;
-                }
-                }
-
-                break;
-
-            case 3: // Process and their opponent are looking for a second.
-                {
-                // printf("Time %d, Rank %d, szukam sekundanta\n", CLOCK, rank);
-                for(int i=0; i<size; ++i) {
-                        if (i != rank) {
-                            buf = CLOCK;
-                            CLOCK = send_msg(buf, i, SECOND);
-                        }
-                    }
-                    STATE = 0;
-                    wait_for_resource = 1;
-                }
-                break;
-
-            case 4: // Process and their opponent get a second.
-                // printf("Time %d, Rank %d, mam sekundanta\n", CLOCK, rank);
-                STATE = 5;
+                stateMutex.unlock();
                 break;
                 
             case 5: // Fight takes place and the second is being terminated.
-                {
-                wait_for_resource = 0;
-                STATE = 6;
+                printf("Time %d, Rank %d, walcze z przeciwnikiem\n", CLOCK, rank);
 
                 while (queue.size() > 0) {
+                    printf("jestem\n");
                     info = queue.front();
                     queue.erase(queue.begin());
-                    buf = CLOCK;
-                    CLOCK = send_msg(buf, info.id, OK);
+                    CLOCK++;
+                    send_msg(CLOCK, info.id, OK);
                 }
-                }
+
+                wait_for_resource = 0;
+                STATE = 1;
+                stateMutex.unlock();
+                printf("Time %d, Rank %d, zwalniam przeciwnika\n", CLOCK, rank);
+
                 break;
 
             case 6: // Process which lost is looking for a hospital.
-                {
-                printf("Time %d, Rank %d, szukam szpitala\n", CLOCK, rank);
-                for(int i=0; i<size; ++i) {
-                    if (i != rank) {
-                        buf = CLOCK;
-                        CLOCK = send_msg(buf, i, HOSPITAL);
-                    }
-                }
-                STATE = 0;
-                wait_for_resource = 2;
-                }
+                // LAST_REQ = CLOCK + 1;
+                // // stateMutex.lock();
+                // wait_for_resource = 2;
+                // STATE = 0;
+                // // stateMutex.unlock();
+                // for(int i=0; i<size; ++i) {
+                //     if (i != rank) {
+                //         CLOCK++;
+                //         send_msg(CLOCK, i, HOSPITAL);
+                //     }
+                // }
+                // // }
+                stateMutex.unlock();
                 break;
 
             case 7: // Process is staying in a hospital.
-                printf("Time %d, Rank %d, leczę się\n", CLOCK, rank);
-                sleep(rand()%10+1);
-                STATE = 8;
+                // printf("Time %d, Rank %d, leczę się", CLOCK, rank);
+                // sleep(rand()%10+1);
+                // STATE = 8;
+                stateMutex.unlock();
                 break;
 
             case 8: // Process is leaving hospital.
-                printf("Time %d, Rank %d, zwalniam szpital\n", CLOCK, rank);
+                // printf("Time %d, Rank %d, zwalniam szpital", CLOCK, rank);
                 
-                wait_for_resource = 0;
-                STATE = 1;
-
-                while (hsp_queue.size() > 0) {
-                    info = hsp_queue.front();
-                    hsp_queue.erase(hsp_queue.begin());
-                    buf = CLOCK;
-                    CLOCK = send_msg(buf, info.id, OKHOSPITAL);
-                }
+                // wait_for_resource = 0;
+                // STATE = 1;
+                // while (hsp_queue.size() > 0) {
+                //     info = hsp_queue.front();
+                //     hsp_queue.erase(hsp_queue.begin());
+                //     buf = CLOCK;
+                //     CLOCK = send_msg(buf, info.id, OKHOSPITAL);
+                // }
+                stateMutex.unlock();
 
                 break;
 
             case 0: // Process is waiting.
+                stateMutex.unlock();
                 break;
 
             default:
+                stateMutex.unlock();
                 break;
         }
     }

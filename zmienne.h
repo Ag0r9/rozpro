@@ -12,6 +12,7 @@
 extern bool isActive;
 
 extern int CLOCK;
+extern int LAST_REQ;
 extern int STATE;
 
 extern int size;
@@ -28,29 +29,27 @@ typedef struct {
 
 extern std::vector<Info> queue;
 extern std::vector<Info> hsp_queue;
-extern std::vector<Info> sec_queue;
 
 extern std::mutex stateMutex;
 extern std::condition_variable canGoFurther;
 
-
-bool sortByTime(Info i1, Info i2);
-int send_msg(int msg, int id_, int type); 
-int encode(int id, int time);
-int findPosition(std::vector<Info>* q, int value); 
-Info decode(int code);
-void deleteById(std::vector<Info>* q, int idx);
+// bool sortByTime(Info i1, Info i2);
+void send_msg(int msg, int id_, int type); 
+// int encode(int id, int time);
+// int findPosition(std::vector<Info>* q, int value); 
+// Info decode(int code);
+// void deleteById(std::vector<Info>* q, int idx);
 
 #define READY 0
 #define OK 1
-#define CONFIRM 2
-#define FIGHT 3
-#define SECOND 4
-#define OKSECOND 5
-#define NOSECOND 6
+// #define CONFIRM 2
+// #define FIGHT 3
+// #define SECOND 4
+// #define OKSECOND 5
+// #define NOSECOND 6
 #define HOSPITAL 7
 #define OKHOSPITAL 8
-#define NOHOSPITAL 9
-#define ISHURT 10
+// #define NOHOSPITAL 9
+// #define ISHURT 10
 
 #endif
